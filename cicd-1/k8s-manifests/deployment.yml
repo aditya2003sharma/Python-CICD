@@ -15,6 +15,6 @@ spec:
     spec:
       containers:
       - name: python-app
-        image: aditya28jan2003/python-cicd:replaceImageTag
+        image: aditya28jan2003/python-cicd:5
         ports:
         - containerPort: 5000
