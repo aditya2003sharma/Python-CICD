@@ -13,12 +13,12 @@ pipeline {
     }
     stage('Install Dependencies') {
       steps {
-        sh 'pip install -r requirements.txt'
+        sh 'pip install -r cicd-1/requirements.txt'
       }
     }
     stage('Run Tests') {
       steps {
-        sh 'pytest test_app.py -v'
+        sh 'pytest cicd-1/test_app.py -v'
       }
     }
     stage('Build and Push Docker Image') {
@@ -34,7 +34,7 @@ pipeline {
           sh '''
             apt-get update && apt-get install -y docker.io
             docker login -u $DOCKER_USER -p $DOCKER_PASS
-            docker build -t ${DOCKER_IMAGE} .
+            docker build -t ${DOCKER_IMAGE} cicd-1/
             docker push ${DOCKER_IMAGE}
           '''
         }
@@ -42,19 +42,19 @@ pipeline {
     }
     stage('Update Deployment File') {
       environment {
-        GIT_REPO_NAME = "python-cid"
+        GIT_REPO_NAME = "Python-CICD"
         GIT_USER_NAME = "aditya2003sharma"
       }
       steps {
         withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
           sh """
             apt-get install -y git
-            git config --global --add safe.directory /var/lib/jenkins/workspace/python-cicd
-            git config --global user.email "your-email@gmail.com"
-            git config --global user.name "Your Name"
-            sed -i "s/replaceImageTag/${BUILD_NUMBER}/g" k8s-manifests/deployment.yml
-            git add k8s-manifests/deployment.yml
-            git commit -m "Update deployment image to version ${BUILD_NUMBER}" || true
+            git config --global --add safe.directory ${WORKSPACE}
+            git config --global user.email "aditya28jan2003@gmail.com"
+            git config --global user.name "Aditya Sharma"
+            sed -i "s/replaceImageTag/${BUILD_NUMBER}/g" cicd-1/k8s-manifests/deployment.yml
+            git add cicd-1/k8s-manifests/deployment.yml
+            git commit -m "Update image to version ${BUILD_NUMBER}" || true
             git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME}.git HEAD:main
           """
         }
