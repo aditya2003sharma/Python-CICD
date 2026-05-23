@@ -1,0 +1,64 @@
+pipeline {
+  agent {
+    docker {
+      image 'python:3.11-slim'
+      args '--user root -v /var/run/docker.sock:/var/run/docker.sock'
+    }
+  }
+  stages {
+    stage('Checkout') {
+      steps {
+        echo 'Code checked out'
+      }
+    }
+    stage('Install Dependencies') {
+      steps {
+        sh 'pip install -r requirements.txt'
+      }
+    }
+    stage('Run Tests') {
+      steps {
+        sh 'pytest test_app.py -v'
+      }
+    }
+    stage('Build and Push Docker Image') {
+      environment {
+        DOCKER_IMAGE = "aditya28jan2003/python-cicd:${BUILD_NUMBER}"
+      }
+      steps {
+        withCredentials([usernamePassword(
+          credentialsId: 'docker-creds',
+          usernameVariable: 'DOCKER_USER',
+          passwordVariable: 'DOCKER_PASS'
+        )]) {
+          sh '''
+            apt-get update && apt-get install -y docker.io
+            docker login -u $DOCKER_USER -p $DOCKER_PASS
+            docker build -t ${DOCKER_IMAGE} .
+            docker push ${DOCKER_IMAGE}
+          '''
+        }
+      }
+    }
+    stage('Update Deployment File') {
+      environment {
+        GIT_REPO_NAME = "python-cid"
+        GIT_USER_NAME = "aditya2003sharma"
+      }
+      steps {
+        withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
+          sh """
+            apt-get install -y git
+            git config --global --add safe.directory /var/lib/jenkins/workspace/python-cicd
+            git config --global user.email "your-email@gmail.com"
+            git config --global user.name "Your Name"
+            sed -i "s/replaceImageTag/${BUILD_NUMBER}/g" k8s-manifests/deployment.yml
+            git add k8s-manifests/deployment.yml
+            git commit -m "Update deployment image to version ${BUILD_NUMBER}" || true
+            git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME}.git HEAD:main
+          """
+        }
+      }
+    }
+  }
+}
